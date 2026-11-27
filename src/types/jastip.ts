@@ -124,3 +124,16 @@ export interface WalletTransaction {
   amount: number;
   created_at: string;
 }
+
+export interface JastipReview {
+  id: number;
+  order_id: number;
+  order_code: string;
+  penitip_nama: string;
+  nama_trip: string;
+  items_summary: string;
+  rating: number;
+  review_comment: string;
+  created_at: string;
+}
+

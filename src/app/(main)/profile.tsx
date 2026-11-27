@@ -133,6 +133,29 @@ export default function ProfileScreen() {
 
         {/* Menu Items Card */}
         <View style={styles.menuCard}>
+          {/* Ulasan & Rating Jastiper Item */}
+          {currentRole === 'Jastiper' && (
+            <>
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={() => router.push('/(main)/dashboard-jastiper' as any)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuIconBox, { backgroundColor: '#FEF3C7' }]}>
+                  <Ionicons name="star" size={20} color="#D97706" />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.menuLabel}>Ulasan & Rating Pembeli</Text>
+                  <Text style={{ fontSize: 11, color: '#D97706', fontWeight: '700', marginTop: 2 }}>
+                    ⭐ 5.0 · Super Jastiper (100% Puas)
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={JasTipColors.textMuted} />
+              </TouchableOpacity>
+              <View style={styles.menuDivider} />
+            </>
+          )}
+
           {/* Saldo Item */}
           <TouchableOpacity
             style={styles.menuRow}

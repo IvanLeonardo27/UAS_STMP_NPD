@@ -9,7 +9,8 @@ import {
   TripCheckin,
   OrderSummaryItem,
   UserRole,
-  WalletTransaction
+  WalletTransaction,
+  JastipReview
 } from '@/types/jastip';
 
 // Ganti NRP di sini sesuai kebutuhan server ubaya.fun
@@ -218,6 +219,24 @@ const INITIAL_ORDERS: Order[] = [
     nama_trip: 'Tokyo Spring Trip',
     details: [
       { id: 3, order_id: 2, item_id: 4, nama_barang: 'Mini Totebag', harga: 150000, qty: 1, subtotal: 150000 },
+    ],
+  },
+  {
+    id: 3,
+    order_code: 'JTG-0128',
+    penitip_id: 2,
+    jastiper_id: 1,
+    total_harga: 210000,
+    status: 'Selesai',
+    is_saldo_released: 1,
+    created_at: '2026-04-10 14:00:00',
+    penitip_nama: 'Rani Wijaya',
+    jastiper_nama: 'Kevin Jastiper',
+    nama_trip: 'Tokyo Spring Trip',
+    rating: 5,
+    review_comment: 'Titipan dibelikan lengkap dan packing sangat rapi pakai bubble wrap tebal! Jastiper sangat ramah dan amanah ⭐⭐⭐⭐⭐',
+    details: [
+      { id: 4, order_id: 3, item_id: 1, nama_barang: 'Pocky Matcha', harga: 35000, qty: 6, subtotal: 210000 },
     ],
   },
 ];
@@ -1107,6 +1126,38 @@ class JastipApiService {
       order.review_comment = comment;
       await AsyncStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
     }
+  }
+
+  async getReviews(jastiperId?: number): Promise<JastipReview[]> {
+    const orders = await this.getOrders();
+    const reviewedOrders = orders.filter((o) => o.rating && o.rating > 0);
+    const reviews: JastipReview[] = reviewedOrders.map((o) => ({
+      id: o.id,
+      order_id: o.id,
+      order_code: o.order_code,
+      penitip_nama: o.penitip_nama || 'Rani Wijaya',
+      nama_trip: o.nama_trip || 'Tokyo Spring Trip',
+      items_summary: o.details?.map((d) => `${d.nama_barang} x${d.qty}`).join(', ') || 'Barang Titipan',
+      rating: o.rating || 5,
+      review_comment: o.review_comment || 'Pelayanan jastip memuaskan dan barang sampai dengan aman.',
+      created_at: o.created_at || '2026-04-14 12:00',
+    }));
+
+    if (reviews.length === 0) {
+      reviews.push({
+        id: 999,
+        order_id: 999,
+        order_code: 'JTG-0128',
+        penitip_nama: 'Rani Wijaya',
+        nama_trip: 'Tokyo Spring Trip',
+        items_summary: 'Pocky Matcha x6',
+        rating: 5,
+        review_comment: 'Titipan dibelikan lengkap dan packing sangat rapi pakai bubble wrap tebal! Jastiper sangat ramah dan amanah ⭐⭐⭐⭐⭐',
+        created_at: '2026-04-11 16:45',
+      });
+    }
+
+    return reviews;
   }
 
   async updateItemStatus(namaBarang: string, nextStatus: 'Dibeli' | 'Dikirim' | 'Tiba'): Promise<void> {

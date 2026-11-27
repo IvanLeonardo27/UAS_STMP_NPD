@@ -14,7 +14,7 @@ import {
 import { JasTipColors } from '@/constants/theme';
 import { HeaderBar } from '@/components/common/HeaderBar';
 import { BottomNavBar } from '@/components/common/BottomNavBar';
-import { CustomRequest, OrderSummaryItem, Trip } from '@/types/jastip';
+import { CustomRequest, OrderSummaryItem, Trip, JastipReview } from '@/types/jastip';
 import { api } from '@/services/api';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,9 +22,10 @@ import { Ionicons } from '@expo/vector-icons';
 export default function DashboardJastiperScreen() {
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<'requests' | 'summary'>('requests');
+  const [activeTab, setActiveTab] = useState<'requests' | 'summary' | 'reviews'>('requests');
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
   const [requests, setRequests] = useState<CustomRequest[]>([]);
+  const [reviews, setReviews] = useState<JastipReview[]>([]);
   const [selectedTripFilter, setSelectedTripFilter] = useState<string>('Semua');
   const [summaryData, setSummaryData] = useState<{
     total_barang: number;
@@ -42,14 +43,16 @@ export default function DashboardJastiperScreen() {
   const loadData = useCallback(async (filter?: string) => {
     try {
       const tripFilter = filter !== undefined ? filter : selectedTripFilter;
-      const [reqList, summary, trips] = await Promise.all([
+      const [reqList, summary, trips, reviewList] = await Promise.all([
         api.getRequests(),
         api.getSummary(tripFilter),
         api.getTrips(),
+        api.getReviews(),
       ]);
       setRequests(reqList);
       setSummaryData(summary);
       setActiveTrip(trips[0] || null);
+      setReviews(reviewList);
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -67,11 +70,9 @@ export default function DashboardJastiperScreen() {
     loadData();
   };
 
-  const handleTabChange = (tab: 'requests' | 'summary') => {
+  const handleTabChange = (tab: 'requests' | 'summary' | 'reviews') => {
     setActiveTab(tab);
-    if (tab === 'summary') {
-      loadData();
-    }
+    loadData();
   };
 
   const handleFilterTrip = (tripName: string) => {
@@ -158,6 +159,11 @@ export default function DashboardJastiperScreen() {
 
   const pendingRequests = requests.filter((r) => r.status === 'Menunggu');
 
+  const avgRating =
+    reviews.length > 0
+      ? (reviews.reduce((acc, r) => acc + (r.rating || 5), 0) / reviews.length).toFixed(1)
+      : '5.0';
+
   if (isLoading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -170,14 +176,14 @@ export default function DashboardJastiperScreen() {
     <View style={styles.container}>
       <HeaderBar title="Dashboard Jastiper" />
 
-      {/* Segmented Tabs */}
+      {/* Segmented Tabs (3 Tabs) */}
       <View style={styles.tabsWrapper}>
         <TouchableOpacity
           style={[styles.tabButton, activeTab === 'requests' && styles.tabButtonActive]}
           onPress={() => handleTabChange('requests')}
         >
           <Text style={[styles.tabText, activeTab === 'requests' && styles.tabTextActive]}>
-            Request masuk
+            Request
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -186,6 +192,14 @@ export default function DashboardJastiperScreen() {
         >
           <Text style={[styles.tabText, activeTab === 'summary' && styles.tabTextActive]}>
             Summary
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'reviews' && styles.tabButtonActive]}
+          onPress={() => handleTabChange('reviews')}
+        >
+          <Text style={[styles.tabText, activeTab === 'reviews' && styles.tabTextActive]}>
+            Ulasan ({reviews.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -248,7 +262,7 @@ export default function DashboardJastiperScreen() {
           </View>
         )}
 
-        {activeTab === 'requests' ? (
+        {activeTab === 'requests' && (
           // TAB 1: REQUEST MASUK
           <View>
             {pendingRequests.length === 0 ? (
@@ -323,7 +337,9 @@ export default function DashboardJastiperScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        ) : (
+        )}
+
+        {activeTab === 'summary' && (
           // TAB 2: SUMMARY PESANAN
           <View>
             {/* Trip Filter Chips */}
@@ -476,6 +492,123 @@ export default function DashboardJastiperScreen() {
                         <Text style={styles.markArrivedBtnText}>Tandai Tiba</Text>
                       </TouchableOpacity>
                     )}
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
+        {activeTab === 'reviews' && (
+          // TAB 3: ULASAN & RATING PEMBELI (Fitur Tambahan)
+          <View>
+            {/* Reputasi Hero Card */}
+            <View style={styles.ratingHeroCard}>
+              <View style={styles.ratingHeroLeft}>
+                <Text style={styles.ratingHeroScore}>{avgRating}</Text>
+                <View style={styles.heroStarsRow}>
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Ionicons
+                      key={s}
+                      name={s <= Math.round(Number(avgRating)) ? 'star' : 'star-outline'}
+                      size={18}
+                      color="#F59E0B"
+                      style={{ marginRight: 2 }}
+                    />
+                  ))}
+                </View>
+                <Text style={styles.ratingHeroSubtitle}>
+                  dari {reviews.length} ulasan pembeli
+                </Text>
+              </View>
+              <View style={styles.ratingHeroDivider} />
+              <View style={styles.ratingHeroRight}>
+                <View style={styles.heroPill}>
+                  <Ionicons name="shield-checkmark" size={13} color="#0D4B68" style={{ marginRight: 4 }} />
+                  <Text style={styles.heroPillText}>Super Jastiper</Text>
+                </View>
+                <Text style={styles.heroSatisfactionText}>100% Kepuasan</Text>
+                <Text style={styles.heroNote}>Pesanan diantar aman & tepat waktu</Text>
+              </View>
+            </View>
+
+            {/* List Header */}
+            <View style={styles.reviewsListHeader}>
+              <Ionicons name="chatbox-ellipses-outline" size={18} color={JasTipColors.primary} style={{ marginRight: 6 }} />
+              <Text style={styles.reviewsListTitle}>Daftar Ulasan & Rating Pembeli</Text>
+            </View>
+
+            {reviews.length === 0 ? (
+              <View style={styles.emptyBox}>
+                <Ionicons name="star-outline" size={48} color={JasTipColors.textMuted} />
+                <Text style={styles.emptyTitle}>Belum ada ulasan pembeli</Text>
+                <Text style={styles.emptyDesc}>
+                  Ulasan dan rating bintang 5 dari pembeli yang menerima barang titipan akan muncul di sini.
+                </Text>
+              </View>
+            ) : (
+              reviews.map((rev) => (
+                <View key={rev.id || rev.order_id} style={styles.reviewCard}>
+                  {/* Header Row: Buyer Info + Date */}
+                  <View style={styles.reviewCardHeader}>
+                    <View style={styles.reviewerAvatar}>
+                      <Text style={styles.reviewerAvatarText}>
+                        {rev.penitip_nama ? rev.penitip_nama.charAt(0).toUpperCase() : 'P'}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={styles.reviewerName}>{rev.penitip_nama}</Text>
+                        <View style={styles.penitipBadge}>
+                          <Text style={styles.penitipBadgeText}>Pembeli</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.reviewDate}>{rev.created_at}</Text>
+                    </View>
+                    <View style={styles.verifiedTag}>
+                      <Ionicons name="checkmark-circle" size={14} color="#16A34A" />
+                      <Text style={styles.verifiedTagText}>Selesai</Text>
+                    </View>
+                  </View>
+
+                  {/* Rating Stars Row */}
+                  <View style={styles.reviewStarsRow}>
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Ionicons
+                        key={s}
+                        name={s <= rev.rating ? 'star' : 'star-outline'}
+                        size={18}
+                        color="#F59E0B"
+                        style={{ marginRight: 3 }}
+                      />
+                    ))}
+                    <Text style={styles.reviewScoreBadge}>{rev.rating}.0 / 5.0</Text>
+                  </View>
+
+                  {/* Trip & Items Meta */}
+                  <View style={styles.reviewMetaRow}>
+                    <View style={styles.reviewMetaChip}>
+                      <Ionicons name="airplane" size={12} color="#0E627C" style={{ marginRight: 4 }} />
+                      <Text style={styles.reviewMetaChipText}>{rev.nama_trip}</Text>
+                    </View>
+                    <View style={styles.reviewOrderChip}>
+                      <Text style={styles.reviewOrderChipText}>{rev.order_code}</Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.reviewItemsText}>
+                    📦 {rev.items_summary}
+                  </Text>
+
+                  {/* Comment Quote Bubble */}
+                  <View style={styles.quoteBox}>
+                    <Ionicons
+                      name="chatbubble-ellipses"
+                      size={16}
+                      color="#0D9488"
+                      style={{ marginRight: 8, marginTop: 2 }}
+                    />
+                    <Text style={styles.quoteText}>&ldquo;{rev.review_comment}&rdquo;</Text>
                   </View>
                 </View>
               ))
@@ -1054,5 +1187,213 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#5C4505',
+  },
+  // --- REPUTASI & ULASAN STYLES (Fitur Tambahan) ---
+  ratingHeroCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#D8E8F2',
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  ratingHeroLeft: {
+    alignItems: 'center',
+    paddingRight: 16,
+  },
+  ratingHeroScore: {
+    fontSize: 34,
+    fontWeight: '900',
+    color: '#0E627C',
+  },
+  heroStarsRow: {
+    flexDirection: 'row',
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  ratingHeroSubtitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: JasTipColors.textMuted,
+  },
+  ratingHeroDivider: {
+    width: 1,
+    height: '80%',
+    backgroundColor: '#E2ECF2',
+    marginRight: 16,
+  },
+  ratingHeroRight: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  heroPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginBottom: 6,
+  },
+  heroPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0D4B68',
+  },
+  heroSatisfactionText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: JasTipColors.text,
+  },
+  heroNote: {
+    fontSize: 11,
+    color: JasTipColors.textSecondary,
+    marginTop: 2,
+  },
+  reviewsListHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  reviewsListTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: JasTipColors.text,
+  },
+  reviewCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2ECF2',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  reviewCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  reviewerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E0F2FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviewerAvatarText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0284C7',
+  },
+  reviewerName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: JasTipColors.text,
+  },
+  penitipBadge: {
+    backgroundColor: '#EDF4F8',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  penitipBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: JasTipColors.primary,
+  },
+  reviewDate: {
+    fontSize: 11,
+    color: JasTipColors.textMuted,
+    marginTop: 2,
+  },
+  verifiedTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
+  },
+  verifiedTagText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#15803D',
+  },
+  reviewStarsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  reviewScoreBadge: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#B45309',
+    marginLeft: 6,
+  },
+  reviewMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  reviewMetaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  reviewMetaChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  reviewOrderChip: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  reviewOrderChipText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  reviewItemsText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+    marginBottom: 10,
+  },
+  quoteBox: {
+    flexDirection: 'row',
+    backgroundColor: '#F8FAFC',
+    borderLeftWidth: 3,
+    borderLeftColor: '#0D9488',
+    padding: 10,
+    borderRadius: 8,
+  },
+  quoteText: {
+    flex: 1,
+    fontSize: 13,
+    fontStyle: 'italic',
+    color: '#334155',
+    lineHeight: 18,
   },
 });
